@@ -31,7 +31,16 @@ class AuthService {
       data: {'login': login, 'senha': senha},
     );
     final data = response.data;
-    final token = _extractToken(data);
+    var token = _extractToken(data);
+    if (token.isEmpty) {
+      final header = response.headers.value('authorization') ??
+          response.headers.value('x-auth-token');
+      if (header != null) {
+        token = header
+            .replaceFirst(RegExp(r'^Bearer\s+', caseSensitive: false), '')
+            .trim();
+      }
+    }
     if (token.isEmpty) {
       throw Exception('Token não retornado pelo servidor.');
     }
@@ -59,13 +68,17 @@ class AuthService {
           map['access_token'] ??
           map['idToken'];
       if (direct is String && direct.isNotEmpty) return direct;
-      final nested = map['data'] ?? map['auth'] ?? map['usuario'];
+      final dataField = map['data'];
+      if (dataField is String && dataField.isNotEmpty) return dataField;
+      final nested = dataField ?? map['auth'] ?? map['usuario'];
       if (nested is Map) {
         final nestedMap = Map<String, dynamic>.from(nested);
         final nestedToken = nestedMap['token'] ??
             nestedMap['accessToken'] ??
             nestedMap['access_token'];
         if (nestedToken is String && nestedToken.isNotEmpty) return nestedToken;
+        final nestedData = nestedMap['data'];
+        if (nestedData is String && nestedData.isNotEmpty) return nestedData;
       }
     }
     return '';
