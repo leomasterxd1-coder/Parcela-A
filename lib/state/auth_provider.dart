@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/token_storage.dart';
@@ -96,13 +97,33 @@ class AuthProvider extends ChangeNotifier {
   }
 
   String _messageFromError(Object error) {
-    final text = error.toString();
-    if (text.contains('401')) return 'Login ou senha inválidos.';
-    if (text.contains('SocketException') ||
-        text.contains('Connection') ||
-        text.contains('timeout')) {
-      return 'Não foi possível conectar ao servidor.';
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        final message = map['message'] ?? map['mensagem'] ?? map['error'];
+        if (message is String && message.isNotEmpty) return message;
+        final errors = map['errors'];
+        if (errors is List && errors.isNotEmpty) {
+          final first = errors.first;
+          if (first is String) return first;
+          if (first is Map) {
+            final text = first['message'] ?? first['mensagem'];
+            if (text != null) return text.toString();
+          }
+        }
+      }
+      final status = error.response?.statusCode;
+      if (status == 401) return 'Login ou senha inválidos.';
+      if (status == 403) return 'Acesso negado.';
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout) {
+        return 'Não foi possível conectar ao servidor.';
+      }
+      return 'Falha na conexão${status == null ? '' : ' ($status)'}.';
     }
-    return text.replaceFirst('Exception: ', '');
+    return error.toString().replaceFirst('Exception: ', '');
   }
 }

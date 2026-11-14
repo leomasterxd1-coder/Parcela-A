@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/brand_mark.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -92,7 +91,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const BrandTitle(fontSize: 30),
+                      Image.asset(
+                        'assets/images/login_logo.png',
+                        width: 320,
+                        fit: BoxFit.contain,
+                      ),
                       const SizedBox(height: 48),
                       TextFormField(
                         controller: _loginController,
