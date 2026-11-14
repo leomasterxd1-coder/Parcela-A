@@ -19,6 +19,8 @@ class PropostaCliente {
 
 class PropostaEtapa {
   final int? id;
+  final int? configuracao;
+  final int? coleta;
   final String nome;
   final String codigo;
   final String status;
@@ -26,6 +28,8 @@ class PropostaEtapa {
 
   const PropostaEtapa({
     this.id,
+    this.configuracao,
+    this.coleta,
     required this.nome,
     required this.codigo,
     required this.status,
@@ -36,6 +40,8 @@ class PropostaEtapa {
     if (json == null) return PropostaEtapa.empty();
     return PropostaEtapa(
       id: _int(json['id']),
+      configuracao: _int(json['configuracao']),
+      coleta: _int(json['coleta']),
       nome: _string(json['nome']),
       codigo: _string(json['codigo']),
       status: _string(json['status']),
@@ -74,6 +80,8 @@ class PropostaOrigem {
 
 class Proposta {
   final int id;
+  final String? uuid;
+  final int? produtoId;
   final String status;
   final PropostaCliente cliente;
   final DateTime? data;
@@ -83,6 +91,8 @@ class Proposta {
 
   const Proposta({
     required this.id,
+    this.uuid,
+    this.produtoId,
     required this.status,
     required this.cliente,
     required this.data,
@@ -94,9 +104,15 @@ class Proposta {
   factory Proposta.fromJson(Map<String, dynamic> json) {
     final clienteJson = _map(json['cliente']);
     final etapaJson = _map(json['etapaAtual']);
-    final origemJson = _map(json['origemComercial'] ?? json['origem']);
+    final origemRaw = json['origemComercial'] ?? json['origem'];
+    final origemJson = _map(origemRaw);
+    final origem = origemJson != null
+        ? PropostaOrigem.fromJson(origemJson)
+        : PropostaOrigem(id: _int(origemRaw), nome: '');
     return Proposta(
       id: _int(json['id']) ?? 0,
+      uuid: _stringOrNull(json['uuid']),
+      produtoId: _int(json['produto']),
       status: _string(json['status']),
       cliente: clienteJson == null
           ? PropostaCliente.empty()
@@ -109,7 +125,7 @@ class Proposta {
         'criadoEm',
         'createdAt',
       ])),
-      origem: PropostaOrigem.fromJson(origemJson),
+      origem: origem,
       etapaAtual: PropostaEtapa.fromJson(etapaJson),
       raw: json,
     );
@@ -165,6 +181,11 @@ dynamic _first(Map<String, dynamic> json, List<String> keys) {
 }
 
 String _string(dynamic value) => value?.toString().trim() ?? '';
+
+String? _stringOrNull(dynamic value) {
+  final text = _string(value);
+  return text.isEmpty ? null : text;
+}
 
 int? _int(dynamic value) {
   if (value is int) return value;

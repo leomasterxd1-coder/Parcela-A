@@ -17,6 +17,7 @@ class PropostaService {
     DateTime? dataInicial,
     DateTime? dataFinal,
     int? origemComercialId,
+    int? usuarioId,
     int page = 0,
     int size = 20,
   }) async {
@@ -39,6 +40,9 @@ class PropostaService {
     }
     if (dataFinal != null) {
       params['dataFinal'] = _dateParam(dataFinal);
+    }
+    if (usuarioId != null) {
+      params['usuario'] = usuarioId;
     }
 
     final path = minhas && origemComercialId != null
@@ -72,7 +76,7 @@ class PropostaService {
     required String documento,
     required int produtoId,
     required int origemComercialId,
-    String? fluxo,
+    int? fluxo,
     String? fluxoIdentificador,
   }) async {
     final response = await _dio.post<dynamic>(
@@ -83,8 +87,7 @@ class PropostaService {
         'cpf': documento,
         'origem': AppConfig.origem,
         if (fluxo != null) 'fluxo': fluxo,
-        if (fluxoIdentificador != null)
-          'fluxoIdentificador': fluxoIdentificador,
+        if (fluxoIdentificador != null) 'fluxoIdentificador': fluxoIdentificador,
       },
     );
     return _extractMap(response.data) ?? <String, dynamic>{};

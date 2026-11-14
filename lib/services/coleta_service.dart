@@ -50,6 +50,49 @@ class ColetaService {
     return extrairCampos(response.data);
   }
 
+  Future<List<CampoColeta>> coletaProposta({
+    required int propostaId,
+    required int produtoId,
+    required int etapaId,
+    required int etapaConfiguracaoId,
+    required int perfilId,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      '/coleta/grupos/respondidos',
+      queryParameters: {
+        'processo': propostaId,
+        'etapa': etapaId,
+        'idPerfil': perfilId,
+        'configuracaoAtributo': 'etapa=$etapaConfiguracaoId,produto=$produtoId',
+      },
+    );
+    return extrairCampos(response.data);
+  }
+
+  Future<Map<String, String>> respostasPorCodigos(
+    int propostaId,
+    List<String> codigos,
+  ) async {
+    if (codigos.isEmpty) return {};
+    final response = await _dio.get<dynamic>(
+      '/coleta/respostas/processo/$propostaId/campo/codigo/${codigos.join(',')}',
+    );
+    final data = response.data;
+    final list = data is Map ? data['data'] : data;
+    final valores = <String, String>{};
+    if (list is List) {
+      for (final item in list) {
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          final codigo = map['campoCodigo']?.toString() ?? '';
+          final valor = map['valor']?.toString() ?? '';
+          if (codigo.isNotEmpty) valores[codigo] = valor;
+        }
+      }
+    }
+    return valores;
+  }
+
   Future<void> validarRespostas(List<Map<String, dynamic>> respostas) async {
     if (respostas.isEmpty) return;
     await _dio.post<dynamic>(

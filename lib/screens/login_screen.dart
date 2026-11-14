@@ -16,6 +16,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final _loginController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _obscure = true;
+  bool _salvarCredenciais = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _carregarCredenciais());
+  }
+
+  Future<void> _carregarCredenciais() async {
+    if (!mounted) return;
+    final credenciais =
+        await context.read<AuthProvider>().lerCredenciaisSalvas();
+    if (!mounted || credenciais == null) return;
+    setState(() {
+      _loginController.text = credenciais['login'] ?? '';
+      _senhaController.text = credenciais['senha'] ?? '';
+      _salvarCredenciais = true;
+    });
+  }
 
   @override
   void dispose() {
@@ -27,10 +46,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _entrar() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final auth = context.read<AuthProvider>();
-    final ok = await auth.login(
-      _loginController.text.trim(),
-      _senhaController.text,
-    );
+    final login = _loginController.text.trim();
+    final senha = _senhaController.text;
+    final ok = await auth.login(login, senha);
+    if (ok) {
+      if (_salvarCredenciais) {
+        await auth.salvarCredenciais(login, senha);
+      } else {
+        await auth.limparCredenciais();
+      }
+    }
     if (!mounted) return;
     if (!ok && auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -136,7 +161,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 24),
+                      CheckboxListTile(
+                        value: _salvarCredenciais,
+                        onChanged: (value) => setState(
+                          () => _salvarCredenciais = value ?? false,
+                        ),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        title: const Text(
+                          'Salvar credenciais',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(

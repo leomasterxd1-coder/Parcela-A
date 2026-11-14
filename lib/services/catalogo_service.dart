@@ -33,10 +33,9 @@ class OrigemComercial {
   }
 
   String get label {
-    if (codigo.isEmpty) return nome;
-    if (nome.isEmpty) return codigo;
-    if (nome.contains(codigo)) return nome;
-    return '$codigo - $nome';
+    if (nome.isNotEmpty) return nome;
+    if (codigo.isNotEmpty) return 'Loja $codigo';
+    return 'Loja $id';
   }
 
   Map<String, dynamic> toJson() => {
@@ -44,6 +43,13 @@ class OrigemComercial {
         'nome': nome,
         'codigo': codigo,
       };
+}
+
+class MinhasLojas {
+  final int? usuarioId;
+  final List<OrigemComercial> lojas;
+
+  const MinhasLojas({this.usuarioId, required this.lojas});
 }
 
 class Produto {
@@ -84,7 +90,26 @@ class CatalogoService {
         .toList();
   }
 
-  Future<List<OrigemComercial>> minhasLojas() async {
+  Future<Map<int, String>> nomesOrigens(List<int> ids) async {
+    if (ids.isEmpty) return {};
+    final response = await _dio.get<dynamic>(
+      '/gerencial/origens-comerciais/nome',
+      queryParameters: {'ids': ids.join(',')},
+    );
+    final list = _extractList(response.data);
+    final nomes = <int, String>{};
+    for (final item in list) {
+      if (item is Map) {
+        final map = Map<String, dynamic>.from(item);
+        final id = _int(map['id']);
+        final nome = _string(map['nome']);
+        if (id != null && nome.isNotEmpty) nomes[id] = nome;
+      }
+    }
+    return nomes;
+  }
+
+  Future<MinhasLojas> minhasLojas() async {
     try {
       final response = await _dio.get<dynamic>(
         '/gerencial/usuarios/promotores/me',
@@ -108,11 +133,16 @@ class CatalogoService {
               )
               .where((e) => e.id > 0)
               .toList();
-          if (list.isNotEmpty) return list;
+          if (list.isNotEmpty) {
+            return MinhasLojas(
+              usuarioId: _int(map['id']),
+              lojas: list,
+            );
+          }
         }
       }
     } catch (_) {}
-    return origens();
+    return MinhasLojas(lojas: await origens());
   }
 
   Future<List<Produto>> produtos({required int origemComercialId}) async {

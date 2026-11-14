@@ -21,6 +21,7 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
   Map<String, dynamic>? _user;
   OrigemComercial? _origemSelecionada;
+  int? _usuarioId;
 
   bool get initializing => _initializing;
   bool get loading => _loading;
@@ -28,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   Map<String, dynamic>? get user => _user;
   OrigemComercial? get origemSelecionada => _origemSelecionada;
+  int? get usuarioId => _usuarioId;
 
   String get displayName {
     final value = _user?['nome'] ??
@@ -43,8 +45,10 @@ class AuthProvider extends ChangeNotifier {
       final token = await _storage.readToken();
       final rawUser = await _storage.readUser();
       final rawOrigem = await _storage.readOrigem();
+      final usuarioId = await _storage.readUsuarioId();
       if (token != null && token.isNotEmpty) {
         _authenticated = true;
+        _usuarioId = usuarioId;
         if (rawUser != null && rawUser.isNotEmpty) {
           final decoded = jsonDecode(rawUser);
           if (decoded is Map) {
@@ -76,10 +80,12 @@ class AuthProvider extends ChangeNotifier {
       final result = await _authService.login(login, senha);
       _user = result.user;
       _origemSelecionada = null;
+      _usuarioId = null;
       _authenticated = true;
       await _storage.writeToken(result.token);
       await _storage.writeUser(jsonEncode(result.user));
       await _storage.clearOrigem();
+      await _storage.clearUsuarioId();
       return true;
     } catch (e) {
       _error = _messageFromError(e);
@@ -103,10 +109,34 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<Map<String, String>?> lerCredenciaisSalvas() async {
+    final login = await _storage.readSavedLogin();
+    final senha = await _storage.readSavedPassword();
+    if (login == null || login.isEmpty || senha == null || senha.isEmpty) {
+      return null;
+    }
+    return {'login': login, 'senha': senha};
+  }
+
+  Future<void> salvarCredenciais(String login, String senha) async {
+    await _storage.writeSavedCredentials(login, senha);
+  }
+
+  Future<void> limparCredenciais() async {
+    await _storage.clearSavedCredentials();
+  }
+
+  Future<void> definirUsuarioId(int id) async {
+    _usuarioId = id;
+    await _storage.writeUsuarioId(id);
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await _storage.clear();
     _user = null;
     _origemSelecionada = null;
+    _usuarioId = null;
     _authenticated = false;
     _error = null;
     notifyListeners();

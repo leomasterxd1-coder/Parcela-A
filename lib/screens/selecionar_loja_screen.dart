@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../services/catalogo_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/brand_mark.dart';
 
 class SelecionarLojaScreen extends StatefulWidget {
   const SelecionarLojaScreen({super.key});
@@ -32,11 +31,17 @@ class _SelecionarLojaScreenState extends State<SelecionarLojaScreen> {
       _erro = null;
     });
     try {
-      final lojas = await context.read<CatalogoService>().minhasLojas();
+      final catalogo = context.read<CatalogoService>();
+      final auth = context.read<AuthProvider>();
+      final resultado = await catalogo.minhasLojas();
+      if (resultado.usuarioId != null) {
+        await auth.definirUsuarioId(resultado.usuarioId!);
+      }
       if (!mounted) return;
       setState(() {
-        _lojas = lojas;
-        _selecionada = lojas.length == 1 ? lojas.first : null;
+        _lojas = resultado.lojas;
+        _selecionada =
+            resultado.lojas.length == 1 ? resultado.lojas.first : null;
         _carregando = false;
       });
     } catch (e) {
@@ -54,6 +59,19 @@ class _SelecionarLojaScreenState extends State<SelecionarLojaScreen> {
     setState(() => _salvando = true);
     await context.read<AuthProvider>().selecionarOrigem(loja);
     if (mounted) setState(() => _salvando = false);
+  }
+
+  Future<void> _abrirSelecao() async {
+    final loja = await showModalBottomSheet<OrigemComercial>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _LojaPicker(
+        lojas: _lojas,
+        selecionada: _selecionada,
+      ),
+    );
+    if (loja != null) setState(() => _selecionada = loja);
   }
 
   @override
@@ -82,21 +100,22 @@ class _SelecionarLojaScreenState extends State<SelecionarLojaScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Row(
-                      children: [
-                        BrandMark(size: 64),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            'Onde estou?',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.slate,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Center(
+                      child: Image.asset(
+                        'assets/images/login_logo.png',
+                        height: 38,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Onde estou?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.slate,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     if (_carregando)
@@ -109,21 +128,39 @@ class _SelecionarLojaScreenState extends State<SelecionarLojaScreen> {
                     else if (_lojas.isEmpty)
                       const Text('Nenhuma origem comercial vinculada.')
                     else ...[
-                      DropdownButtonFormField<OrigemComercial>(
-                        initialValue: _selecionada,
-                        decoration: const InputDecoration(
-                          labelText: 'Origem Comercial',
-                        ),
-                        items: _lojas
-                            .map(
-                              (loja) => DropdownMenuItem(
-                                value: loja,
-                                child: Text(loja.label),
+                      InkWell(
+                        onTap: _abrirSelecao,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 18,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.line),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _selecionada?.label ?? 'Origem Comercial',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: _selecionada == null
+                                        ? AppColors.muted
+                                        : AppColors.text,
+                                  ),
+                                ),
                               ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _selecionada = value),
+                              const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: AppColors.muted,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -184,6 +221,87 @@ class _SelecionarLojaScreenState extends State<SelecionarLojaScreen> {
           child: const Text('Tentar novamente'),
         ),
       ],
+    );
+  }
+}
+
+class _LojaPicker extends StatefulWidget {
+  final List<OrigemComercial> lojas;
+  final OrigemComercial? selecionada;
+
+  const _LojaPicker({required this.lojas, this.selecionada});
+
+  @override
+  State<_LojaPicker> createState() => _LojaPickerState();
+}
+
+class _LojaPickerState extends State<_LojaPicker> {
+  final _busca = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _busca.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtradas = widget.lojas
+        .where(
+          (loja) => loja.label.toLowerCase().contains(_query.toLowerCase()),
+        )
+        .toList();
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Text(
+                'Selecione a loja',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _busca,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar loja',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) => setState(() => _query = value),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: filtradas
+                    .map(
+                      (loja) => ListTile(
+                        title: Text(loja.label),
+                        trailing: loja.id == widget.selecionada?.id
+                            ? const Icon(
+                                Icons.check,
+                                color: AppColors.pink,
+                              )
+                            : null,
+                        onTap: () => Navigator.of(context).pop(loja),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

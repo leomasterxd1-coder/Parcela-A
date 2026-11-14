@@ -16,8 +16,10 @@ class ApiClient {
             receiveTimeout: const Duration(seconds: 60),
             sendTimeout: const Duration(seconds: 60),
             headers: const {
-              'Accept': 'application/json',
+              'Accept': 'application/json, text/plain, */*',
               'X-TENANT-ID': AppConfig.tenant,
+              'Origin': 'https://parcelaamericanas.onboarding.smilego.io',
+              'Referer': 'https://parcelaamericanas.onboarding.smilego.io/',
             },
           ),
         ) {

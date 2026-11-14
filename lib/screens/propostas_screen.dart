@@ -30,6 +30,7 @@ class _PropostasScreenState extends State<PropostasScreen> {
   final _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   List<Proposta> _propostas = [];
+  Map<int, String> _nomesOrigem = {};
   bool _minhas = true;
   bool _loading = true;
   String? _erro;
@@ -61,16 +62,29 @@ class _PropostasScreenState extends State<PropostasScreen> {
       final lista = await context.read<PropostaService>().listar(
         minhas: _minhas,
         origemComercialId: widget.origem.id,
+        usuarioId: context.read<AuthProvider>().usuarioId,
         id: _idController.text,
         documento: _documentoController.text,
         status: _status,
         dataInicial: _dataInicial,
         dataFinal: _dataFinal,
-        size: 50,
+        size: 200,
       );
+      final ids = lista
+          .map((proposta) => proposta.origem.id)
+          .whereType<int>()
+          .toSet()
+          .toList();
+      var nomes = <int, String>{};
+      if (ids.isNotEmpty) {
+        try {
+          nomes = await context.read<CatalogoService>().nomesOrigens(ids);
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         _propostas = lista;
+        _nomesOrigem = nomes;
         _loading = false;
       });
     } catch (e) {
@@ -164,7 +178,7 @@ class _PropostasScreenState extends State<PropostasScreen> {
                 ),
                 _linha(
                   'Origem comercial',
-                  proposta.origem.nome.isEmpty ? '-' : proposta.origem.nome,
+                  _nomeOrigem(proposta),
                 ),
                 _linha(
                   'Etapa atual',
@@ -218,7 +232,12 @@ class _PropostasScreenState extends State<PropostasScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const BrandTitle(fontSize: 18),
+            Image.asset(
+              'assets/images/login_logo.png',
+              height: 26,
+              fit: BoxFit.contain,
+              alignment: Alignment.centerLeft,
+            ),
             Text(
               widget.origem.label,
               maxLines: 1,
@@ -474,9 +493,7 @@ class _PropostasScreenState extends State<PropostasScreen> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          proposta.origem.nome.isEmpty
-                              ? '-'
-                              : proposta.origem.nome,
+                          _nomeOrigem(proposta),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 12),
@@ -535,6 +552,15 @@ class _PropostasScreenState extends State<PropostasScreen> {
         ),
       ),
     );
+  }
+
+  String _nomeOrigem(Proposta proposta) {
+    if (proposta.origem.nome.isNotEmpty) return proposta.origem.nome;
+    final id = proposta.origem.id;
+    if (id != null && _nomesOrigem[id] != null) {
+      return _nomesOrigem[id]!;
+    }
+    return widget.origem.nome.isEmpty ? '-' : widget.origem.nome;
   }
 
   String _formatDocumento(String documento) {
