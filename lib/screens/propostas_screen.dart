@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,8 @@ import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/brand_mark.dart';
 import '../widgets/status_badge.dart';
+import 'filtros_screen.dart';
+import 'preenchimento_proposta_screen.dart';
 import 'nova_proposta_screen.dart';
 
 class PropostasScreen extends StatefulWidget {
@@ -23,16 +26,14 @@ class PropostasScreen extends StatefulWidget {
 class _PropostasScreenState extends State<PropostasScreen> {
   final _documentoController = TextEditingController();
   final _idController = TextEditingController();
-  final _dataInicialController = TextEditingController();
-  final _dataFinalController = TextEditingController();
-
-  final _dateFormat = DateFormat('dd/MM/yyyy');
+  final _scrollController = ScrollController();
   final _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   List<Proposta> _propostas = [];
   Map<int, String> _nomesOrigem = {};
   bool _minhas = true;
   bool _loading = true;
+  bool _showScrollTop = false;
   String? _erro;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
@@ -41,15 +42,32 @@ class _PropostasScreenState extends State<PropostasScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _carregar());
+  }
+
+  void _onScroll() {
+    final mostrar = _scrollController.offset > 120;
+    if (mostrar != _showScrollTop) {
+      setState(() => _showScrollTop = mostrar);
+    }
+  }
+
+  void _voltarAoTopo() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
   void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     _documentoController.dispose();
     _idController.dispose();
-    _dataInicialController.dispose();
-    _dataFinalController.dispose();
     super.dispose();
   }
 
@@ -96,38 +114,31 @@ class _PropostasScreenState extends State<PropostasScreen> {
     }
   }
 
-  void _limpar() {
-    _documentoController.clear();
-    _idController.clear();
-    _dataInicialController.clear();
-    _dataFinalController.clear();
+  Future<void> _abrirFiltros() async {
+    final resultado = await Navigator.of(context).push<FiltrosProposta>(
+      MaterialPageRoute(
+        builder: (_) => FiltrosScreen(
+          inicial: FiltrosProposta(
+            id: _idController.text,
+            documento: _documentoController.text,
+            status: _status,
+            dataInicial: _dataInicial,
+            dataFinal: _dataFinal,
+            minhas: _minhas,
+          ),
+        ),
+      ),
+    );
+    if (resultado == null) return;
     setState(() {
-      _dataInicial = null;
-      _dataFinal = null;
-      _status = '';
-      _minhas = true;
+      _idController.text = resultado.id;
+      _documentoController.text = resultado.documento;
+      _status = resultado.status;
+      _dataInicial = resultado.dataInicial;
+      _dataFinal = resultado.dataFinal;
+      _minhas = resultado.minhas;
     });
     _carregar();
-  }
-
-  Future<void> _selecionarData({required bool inicial}) async {
-    final atual = inicial ? _dataInicial : _dataFinal;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: atual ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked == null) return;
-    setState(() {
-      if (inicial) {
-        _dataInicial = picked;
-        _dataInicialController.text = _dateFormat.format(picked);
-      } else {
-        _dataFinal = picked;
-        _dataFinalController.text = _dateFormat.format(picked);
-      }
-    });
   }
 
   Future<void> _abrirNovaProposta() async {
@@ -142,6 +153,21 @@ class _PropostasScreenState extends State<PropostasScreen> {
     if (criada == true) {
       _carregar();
     }
+  }
+
+  Future<void> _abrirPreenchimento(Proposta proposta) async {
+    if (!proposta.isAguardandoPreenchimento) {
+      _mostrarDetalhes(proposta);
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PreenchimentoPropostaScreen(
+          propostaId: proposta.id,
+        ),
+      ),
+    );
+    if (mounted) _carregar();
   }
 
   void _mostrarDetalhes(Proposta proposta) {
@@ -167,9 +193,21 @@ class _PropostasScreenState extends State<PropostasScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(_formatDocumento(proposta.cliente.documento)),
+                GestureDetector(
+                  onTap: () => _copiar(
+                    proposta.cliente.documento,
+                    'CPF copiado',
+                  ),
+                  child: Text(_formatDocumento(proposta.cliente.documento)),
+                ),
                 const SizedBox(height: 12),
-                _linha('ID', proposta.id.toString()),
+                InkWell(
+                  onTap: () => _copiar(
+                    proposta.id.toString(),
+                    'Número da proposta copiado',
+                  ),
+                  child: _linha('ID', proposta.id.toString()),
+                ),
                 _linha(
                   'Data',
                   proposta.data == null
@@ -251,6 +289,11 @@ class _PropostasScreenState extends State<PropostasScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Filtros',
+            onPressed: _abrirFiltros,
+            icon: const Icon(Icons.filter_alt_outlined),
+          ),
+          IconButton(
             tooltip: 'Trocar loja',
             onPressed: () => context.read<AuthProvider>().trocarLoja(),
             icon: const Icon(Icons.storefront_outlined),
@@ -262,19 +305,34 @@ class _PropostasScreenState extends State<PropostasScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _abrirNovaProposta,
-        backgroundColor: AppColors.yellow,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_showScrollTop) ...[
+            FloatingActionButton.small(
+              heroTag: 'voltar-ao-topo',
+              onPressed: _voltarAoTopo,
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.slate,
+              child: const Icon(Icons.keyboard_arrow_up),
+            ),
+            const SizedBox(height: 12),
+          ],
+          FloatingActionButton(
+            heroTag: 'nova-proposta',
+            onPressed: _abrirNovaProposta,
+            backgroundColor: AppColors.yellow,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _carregar,
         child: ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
           children: [
-            _filtros(),
-            const SizedBox(height: 12),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.only(top: 80),
@@ -289,119 +347,6 @@ class _PropostasScreenState extends State<PropostasScreen> {
               )
             else
               ..._propostas.map(_card),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _filtros() {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _idController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'ID'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _documentoController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Documento'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Status'),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('Todos')),
-                DropdownMenuItem(
-                  value: 'EM_ANDAMENTO',
-                  child: Text('Em andamento'),
-                ),
-                DropdownMenuItem(
-                  value: 'REPROVADO',
-                  child: Text('Proposta reprovada'),
-                ),
-                DropdownMenuItem(
-                  value: 'APROVADO',
-                  child: Text('Proposta aprovada'),
-                ),
-              ],
-              onChanged: (value) => setState(() => _status = value ?? ''),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _dataInicialController,
-                    readOnly: true,
-                    onTap: () => _selecionarData(inicial: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Data Inicial',
-                      suffixIcon: Icon(Icons.calendar_today_outlined),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _dataFinalController,
-                    readOnly: true,
-                    onTap: () => _selecionarData(inicial: false),
-                    decoration: const InputDecoration(
-                      labelText: 'Data Final',
-                      suffixIcon: Icon(Icons.calendar_today_outlined),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Radio<bool>(
-                  value: true,
-                  groupValue: _minhas,
-                  onChanged: (value) => setState(() => _minhas = value ?? true),
-                ),
-                const Text('Minhas'),
-                const SizedBox(width: 12),
-                Radio<bool>(
-                  value: false,
-                  groupValue: _minhas,
-                  onChanged: (value) =>
-                      setState(() => _minhas = value ?? false),
-                ),
-                const Text('Todas'),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _carregar,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(110, 44),
-                  ),
-                  child: const Text('Pesquisar'),
-                ),
-                const SizedBox(width: 8),
-                TextButton(onPressed: _limpar, child: const Text('Limpar')),
-              ],
-            ),
           ],
         ),
       ),
@@ -461,9 +406,15 @@ class _PropostasScreenState extends State<PropostasScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    _formatDocumento(proposta.cliente.documento),
-                    style: const TextStyle(fontSize: 13),
+                  GestureDetector(
+                    onTap: () => _copiar(
+                      proposta.cliente.documento,
+                      'CPF copiado',
+                    ),
+                    child: Text(
+                      _formatDocumento(proposta.cliente.documento),
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -507,26 +458,33 @@ class _PropostasScreenState extends State<PropostasScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.key_outlined,
-                      size: 16,
-                      color: AppColors.muted,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      proposta.id.toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
+                InkWell(
+                  onTap: () => _copiar(
+                    proposta.id.toString(),
+                    'Número da proposta copiado',
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.key_outlined,
+                        size: 16,
                         color: AppColors.muted,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        proposta.id.toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 40),
                 InkWell(
-                  onTap: () => _mostrarDetalhes(proposta),
+                  onTap: () => _abrirPreenchimento(proposta),
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     width: 34,
@@ -551,6 +509,13 @@ class _PropostasScreenState extends State<PropostasScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _copiar(String texto, String mensagem) {
+    Clipboard.setData(ClipboardData(text: texto));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensagem)),
     );
   }
 

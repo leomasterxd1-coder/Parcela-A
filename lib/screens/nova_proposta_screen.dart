@@ -150,6 +150,16 @@ class _NovaPropostaScreenState extends State<NovaPropostaScreen> {
         produtoId: produto.id,
         etapaId: etapaId,
       );
+      const prioridade = {
+        'pessoa.nome': 0,
+        'pessoa.cpf': 1,
+        'pessoa.email': 2,
+        'pessoa.dataNascimento': 3,
+      };
+      campos.sort(
+        (a, b) => (prioridade[a.codigo] ?? 99)
+            .compareTo(prioridade[b.codigo] ?? 99),
+      );
       if (!mounted) return;
       setState(() {
         _campos = campos;

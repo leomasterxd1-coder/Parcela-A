@@ -101,6 +101,8 @@ List<CampoColeta> extrairCampos(dynamic data) {
     }
     if (value is Map) {
       final map = Map<String, dynamic>.from(value);
+      final wrapped = map['data'] ?? map['conteudo'];
+      if (wrapped is List || wrapped is Map) visit(wrapped);
       final campos = map['campos'];
       if (campos is List) {
         final doGrupo = <MapEntry<int, CampoColeta>>[];
