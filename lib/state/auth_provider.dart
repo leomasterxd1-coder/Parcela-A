@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/token_storage.dart';
 import '../services/auth_service.dart';
+import '../services/catalogo_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService;
@@ -19,12 +20,14 @@ class AuthProvider extends ChangeNotifier {
   bool _authenticated = false;
   String? _error;
   Map<String, dynamic>? _user;
+  OrigemComercial? _origemSelecionada;
 
   bool get initializing => _initializing;
   bool get loading => _loading;
   bool get authenticated => _authenticated;
   String? get error => _error;
   Map<String, dynamic>? get user => _user;
+  OrigemComercial? get origemSelecionada => _origemSelecionada;
 
   String get displayName {
     final value = _user?['nome'] ??
@@ -39,12 +42,21 @@ class AuthProvider extends ChangeNotifier {
     try {
       final token = await _storage.readToken();
       final rawUser = await _storage.readUser();
+      final rawOrigem = await _storage.readOrigem();
       if (token != null && token.isNotEmpty) {
         _authenticated = true;
         if (rawUser != null && rawUser.isNotEmpty) {
           final decoded = jsonDecode(rawUser);
           if (decoded is Map) {
             _user = Map<String, dynamic>.from(decoded);
+          }
+        }
+        if (rawOrigem != null && rawOrigem.isNotEmpty) {
+          final decoded = jsonDecode(rawOrigem);
+          if (decoded is Map) {
+            _origemSelecionada = OrigemComercial.fromJson(
+              Map<String, dynamic>.from(decoded),
+            );
           }
         }
       }
@@ -63,9 +75,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       final result = await _authService.login(login, senha);
       _user = result.user;
+      _origemSelecionada = null;
       _authenticated = true;
       await _storage.writeToken(result.token);
       await _storage.writeUser(jsonEncode(result.user));
+      await _storage.clearOrigem();
       return true;
     } catch (e) {
       _error = _messageFromError(e);
@@ -77,9 +91,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> selecionarOrigem(OrigemComercial origem) async {
+    _origemSelecionada = origem;
+    await _storage.writeOrigem(jsonEncode(origem.toJson()));
+    notifyListeners();
+  }
+
+  Future<void> trocarLoja() async {
+    _origemSelecionada = null;
+    await _storage.clearOrigem();
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await _storage.clear();
     _user = null;
+    _origemSelecionada = null;
     _authenticated = false;
     _error = null;
     notifyListeners();

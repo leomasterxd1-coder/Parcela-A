@@ -5,6 +5,7 @@ import 'core/api_client.dart';
 import 'core/token_storage.dart';
 import 'screens/login_screen.dart';
 import 'screens/propostas_screen.dart';
+import 'screens/selecionar_loja_screen.dart';
 import 'services/auth_service.dart';
 import 'services/catalogo_service.dart';
 import 'services/coleta_service.dart';
@@ -67,7 +68,10 @@ class AuthGate extends StatelessWidget {
       );
     }
     if (auth.authenticated) {
-      return const PropostasScreen();
+      if (auth.origemSelecionada == null) {
+        return const SelecionarLojaScreen();
+      }
+      return PropostasScreen(origem: auth.origemSelecionada!);
     }
     return const LoginScreen();
   }

@@ -32,6 +32,21 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/parcela-a-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=parcela-a-release.jks
+          EOF
+
       - name: Build release APK (arm64-v8a)
         run: |
           VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
@@ -77,3 +92,7 @@ jobs:
           files: ${{ env.APK_NAME }}
           overwrite: true
           make_latest: true
+
+      - name: Cleanup keystore
+        if: always()
+        run: rm -f android/app/parcela-a-release.jks android/key.properties

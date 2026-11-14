@@ -5,8 +5,13 @@ import '../core/api_client.dart';
 class OrigemComercial {
   final int id;
   final String nome;
+  final String codigo;
 
-  const OrigemComercial({required this.id, required this.nome});
+  const OrigemComercial({
+    required this.id,
+    required this.nome,
+    this.codigo = '',
+  });
 
   factory OrigemComercial.fromJson(Map<String, dynamic> json) {
     return OrigemComercial(
@@ -18,8 +23,27 @@ class OrigemComercial {
             json['titulo'] ??
             json['razaoSocial'],
       ),
+      codigo: _string(
+        json['codigo'] ??
+            json['codigoExterno'] ??
+            json['numero'] ??
+            json['numeroLoja'],
+      ),
     );
   }
+
+  String get label {
+    if (codigo.isEmpty) return nome;
+    if (nome.isEmpty) return codigo;
+    if (nome.contains(codigo)) return nome;
+    return '$codigo - $nome';
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'nome': nome,
+        'codigo': codigo,
+      };
 }
 
 class Produto {
@@ -58,6 +82,37 @@ class CatalogoService {
         .map((e) => OrigemComercial.fromJson(Map<String, dynamic>.from(e)))
         .where((e) => e.id > 0)
         .toList();
+  }
+
+  Future<List<OrigemComercial>> minhasLojas() async {
+    try {
+      final response = await _dio.get<dynamic>(
+        '/gerencial/usuarios/promotores/me',
+      );
+      final data = response.data;
+      dynamic payload = data;
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        payload = map['data'] ?? map;
+      }
+      if (payload is Map) {
+        final map = Map<String, dynamic>.from(payload);
+        final origens = map['origensComerciais'];
+        if (origens is List) {
+          final list = origens
+              .whereType<Map>()
+              .map(
+                (item) => OrigemComercial.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .where((e) => e.id > 0)
+              .toList();
+          if (list.isNotEmpty) return list;
+        }
+      }
+    } catch (_) {}
+    return origens();
   }
 
   Future<List<Produto>> produtos({required int origemComercialId}) async {

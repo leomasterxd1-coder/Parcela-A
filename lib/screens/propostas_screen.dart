@@ -12,7 +12,9 @@ import '../widgets/status_badge.dart';
 import 'nova_proposta_screen.dart';
 
 class PropostasScreen extends StatefulWidget {
-  const PropostasScreen({super.key});
+  final OrigemComercial origem;
+
+  const PropostasScreen({super.key, required this.origem});
 
   @override
   State<PropostasScreen> createState() => _PropostasScreenState();
@@ -28,8 +30,6 @@ class _PropostasScreenState extends State<PropostasScreen> {
   final _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   List<Proposta> _propostas = [];
-  List<OrigemComercial> _origens = [];
-  OrigemComercial? _origemSelecionada;
   bool _minhas = true;
   bool _loading = true;
   String? _erro;
@@ -40,7 +40,7 @@ class _PropostasScreenState extends State<PropostasScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _inicializar());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _carregar());
   }
 
   @override
@@ -52,25 +52,6 @@ class _PropostasScreenState extends State<PropostasScreen> {
     super.dispose();
   }
 
-  Future<void> _inicializar() async {
-    await _carregarOrigens();
-    await _carregar();
-  }
-
-  Future<void> _carregarOrigens() async {
-    try {
-      final origens = await context.read<CatalogoService>().origens();
-      if (!mounted) return;
-      setState(() {
-        _origens = origens;
-        _origemSelecionada = origens.isNotEmpty ? origens.first : null;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _origemSelecionada = null);
-    }
-  }
-
   Future<void> _carregar() async {
     setState(() {
       _loading = true;
@@ -79,7 +60,7 @@ class _PropostasScreenState extends State<PropostasScreen> {
     try {
       final lista = await context.read<PropostaService>().listar(
         minhas: _minhas,
-        origemComercialId: _origemSelecionada?.id,
+        origemComercialId: widget.origem.id,
         id: _idController.text,
         documento: _documentoController.text,
         status: _status,
@@ -139,8 +120,8 @@ class _PropostasScreenState extends State<PropostasScreen> {
     final criada = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => NovaPropostaScreen(
-          origens: _origens,
-          origemSelecionada: _origemSelecionada,
+          origens: [widget.origem],
+          origemSelecionada: widget.origem,
         ),
       ),
     );
@@ -232,8 +213,29 @@ class _PropostasScreenState extends State<PropostasScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const BrandTitle(fontSize: 22),
+        toolbarHeight: 68,
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const BrandTitle(fontSize: 18),
+            Text(
+              widget.origem.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.muted,
+              ),
+            ),
+          ],
+        ),
         actions: [
+          IconButton(
+            tooltip: 'Trocar loja',
+            onPressed: () => context.read<AuthProvider>().trocarLoja(),
+            icon: const Icon(Icons.storefront_outlined),
+          ),
           IconButton(
             tooltip: 'Sair',
             onPressed: () => context.read<AuthProvider>().logout(),

@@ -347,7 +347,7 @@ class _NovaPropostaScreenState extends State<NovaPropostaScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                if (_origens.isNotEmpty)
+                if (_origens.length > 1)
                   DropdownButtonFormField<OrigemComercial>(
                     initialValue: _origem,
                     decoration: const InputDecoration(
