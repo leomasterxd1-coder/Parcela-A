@@ -603,6 +603,18 @@ class _NovaPropostaScreenState extends State<NovaPropostaScreen> {
       initialDate: atual ?? DateTime(hoje.year - 25, hoje.month, hoje.day),
       firstDate: DateTime(1900),
       lastDate: hoje,
+      locale: const Locale('pt', 'BR'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Colors.white,
+          ),
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            surface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (picked == null) return;
     _datas[campo.codigo] = picked;

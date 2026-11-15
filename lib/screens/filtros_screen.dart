@@ -75,6 +75,18 @@ class _FiltrosScreenState extends State<FiltrosScreen> {
       initialDate: atual ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
+      locale: const Locale('pt', 'BR'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Colors.white,
+          ),
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            surface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (picked == null) return;
     setState(() {
@@ -117,6 +129,7 @@ class _FiltrosScreenState extends State<FiltrosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           'Filtros',

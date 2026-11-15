@@ -33,6 +33,40 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
       ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: Colors.white,
+        headerBackgroundColor: Colors.white,
+        headerForegroundColor: AppColors.text,
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.red;
+          return Colors.transparent;
+        }),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return AppColors.red;
+        }),
+        dayShape: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const CircleBorder();
+          }
+          return const CircleBorder(
+            side: BorderSide(color: AppColors.red),
+          );
+        }),
+        todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return AppColors.red;
+        }),
+        todayBorder: const BorderSide(color: AppColors.red),
+        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.red;
+          return Colors.transparent;
+        }),
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return AppColors.red;
+        }),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,

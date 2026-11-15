@@ -37,8 +37,10 @@ dependencies:
   dio: ^5.11.1
   provider: ^6.1.5+1
   flutter_secure_storage: ^11.2.0
-  intl: ^0.20.3
+  intl: 0.20.2
   mask_text_input_formatter: ^2.9.0
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
