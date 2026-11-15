@@ -155,6 +155,25 @@ class _PropostasScreenState extends State<PropostasScreen> {
     }
   }
 
+  Future<void> _reenviarToken(Proposta proposta) async {
+    try {
+      await context.read<PropostaService>().reenviarSms(proposta.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Token reenviado por SMS.')),
+      );
+      _carregar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.red,
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
+
   Future<void> _abrirPreenchimento(Proposta proposta) async {
     if (!proposta.isAguardandoPreenchimento) {
       _mostrarDetalhes(proposta);
@@ -232,6 +251,17 @@ class _PropostasScreenState extends State<PropostasScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(motivo),
+                ],
+                if (proposta.status.toUpperCase() == 'EXPIRADO') ...[
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _reenviarToken(proposta);
+                    },
+                    icon: const Icon(Icons.sms_outlined),
+                    label: const Text('Reenviar token'),
+                  ),
                 ],
               ],
             ),

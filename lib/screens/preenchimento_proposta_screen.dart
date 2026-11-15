@@ -313,6 +313,27 @@ class _PreenchimentoPropostaScreenState
     }
   }
 
+  Future<void> _reenviarTokenResultado() async {
+    final proposta = _proposta;
+    if (proposta == null) return;
+    try {
+      await context.read<PropostaService>().reenviarSms(proposta.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Token reenviado por SMS.')),
+      );
+      await _carregar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.red,
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
+
   void _iniciarContagem() {
     _timer?.cancel();
     setState(() => _segundosReenvio = 180);
@@ -429,22 +450,13 @@ class _PreenchimentoPropostaScreenState
             const BrandMark(size: 64),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    proposta?.cliente.nome ?? '',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatDocumento(proposta?.cliente.documento ?? ''),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ],
+              child: Text(
+                'Proposta - ${proposta?.cliente.nome ?? ''}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.slate,
+                ),
               ),
             ),
           ],
@@ -660,22 +672,13 @@ class _PreenchimentoPropostaScreenState
             const BrandMark(size: 64),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    proposta?.cliente.nome ?? '',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatDocumento(proposta?.cliente.documento ?? ''),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ],
+              child: Text(
+                'Proposta - ${proposta?.cliente.nome ?? ''}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.slate,
+                ),
               ),
             ),
           ],
@@ -692,8 +695,12 @@ class _PreenchimentoPropostaScreenState
         const SizedBox(height: 8),
         if (telefone.isNotEmpty)
           Text(
-            'Token enviado para ${_formatarTelefone(telefone)}',
-            style: const TextStyle(fontSize: 14),
+            'Token enviado para ${_formatarTelefone(telefone)} *',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.red,
+            ),
           ),
         const SizedBox(height: 16),
         Row(
@@ -714,6 +721,18 @@ class _PreenchimentoPropostaScreenState
                   contentPadding: EdgeInsets.zero,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.red),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.red),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Colors.black,
+                      width: 2,
+                    ),
                   ),
                 ),
                 onChanged: (value) {
@@ -859,6 +878,14 @@ class _PreenchimentoPropostaScreenState
               Text(
                 proposta.motivoReprovacao,
                 textAlign: TextAlign.center,
+              ),
+            ],
+            if (proposta.status.toUpperCase() == 'EXPIRADO') ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _reenviarTokenResultado,
+                icon: const Icon(Icons.sms_outlined),
+                label: const Text('Reenviar token'),
               ),
             ],
             const SizedBox(height: 24),
